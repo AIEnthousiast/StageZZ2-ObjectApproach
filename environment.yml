@@ -1,0 +1,9 @@
+name: pypy_env
+channels:
+  - conda-forge
+  - defaults
+dependencies:
+  - pypy
+  - matplotlib
+  - numpy
+  - networkx
