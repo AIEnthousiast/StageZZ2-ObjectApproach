@@ -2,21 +2,29 @@
 
 import sys
 from Instances import * 
-from SNOPCompactModel import SNOPCompactModel
+#from SNOPCompactModel import SNOPCompactModel
 from VND import VND
 from RVND import RVND
 from GVNS import GVNS
 from MetaData import MetaData
+from SNOPSolutionInplaceBuilder import SNOPSolutionInplaceBuilder
+from SNOPSolutionOutOfPlaceBuilder import SNOPSOlutionOutOfPlaceBuilder
+from SNOPSolutionDjikstraValueBuilder import SNOPSolutionDjikstraValueBuilder
 import os
 import cProfile
 import pstats
+import functools
+from MCI import MCI
 
-model = RVND()
+import concurrent.futures 
+
+model = MCI(N=100)
 
 
 
 def run_SNOP_Exact(file : str, time_limit: int, recursive : bool, save_file : str) -> None:
-    if os.path.isfile(file) or not recursive:
+    if not os.path.isdir(file) or not recursive:
+        print(file,time_limit)
         edges = read_instance(file)
         instance = Instance(edges)
         
@@ -29,15 +37,27 @@ def run_SNOP_Exact(file : str, time_limit: int, recursive : bool, save_file : st
             f.write(f"Name: {file}\n")
             f.write(f"Resolution time:{metadata.resolution_time}\n")
             f.write(f"Value:{metadata.objective_value}\n")
+            #f.write(f"first value:{metadata.misc['first_value']}\n")
             #f.write(f"Gap:{metadata.misc['Gap']}\n\n\n")
             f.write("\n\n")
     else:
         if os.path.isdir(file):
-            for f in os.listdir(file):
+           
+            with concurrent.futures.ProcessPoolExecutor() as executor:
+                executor.map(functools.partial(run_SNOP_Exact,time_limit=time_limit,recursive=recursive,save_file=save_file),
+                            [os.path.join(file,f) for f in os.listdir(file) if os.path.isfile(os.path.join(file,f))])
+            
+            if recursive:
+                for f in os.listdir(file):
+                    file_path = os.path.join(file,f)
+                    if os.path.isdir(file_path):
+                        run_SNOP_Exact(file_path,time_limit,recursive,save_file)
+            
+            """for f in os.listdir(file):
                 file_path = os.path.join(file,f)
                 if (os.path.isdir(file_path) and recursive) or os.path.isfile(file_path):
                     run_SNOP_Exact(file_path,time_limit,recursive,save_file)
-
+            """
 
 
 if __name__ == "__main__":
@@ -79,10 +99,10 @@ if __name__ == "__main__":
             files.pop(0)
 
 
-
+    random.seed(0)
     for file in files:
-        #run_SNOP_Exact(file,time_limit,recursive,save_file)
-        with cProfile.Profile() as profile:
+        run_SNOP_Exact(file,time_limit,recursive,save_file)
+        """with cProfile.Profile() as profile:
             print(f"{file}")
             run_SNOP_Exact(file,time_limit,recursive,save_file)
             
@@ -90,4 +110,4 @@ if __name__ == "__main__":
         results = pstats.Stats(profile)
         results.sort_stats(pstats.SortKey.TIME)
         results.print_stats()
-        results.dump_stats("results.prof")
+        results.dump_stats("resultsOutplace.prof")"""

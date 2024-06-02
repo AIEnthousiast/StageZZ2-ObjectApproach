@@ -4,6 +4,7 @@ from gurobipy import GRB
 from MetaData import MetaData
 import networkx as nx
 from ResolutionProtocol import ResolutionProtocol
+from Instances import Edge
 
 class SNOPCompactModel(ResolutionProtocol):
     def __init__(self,env : gp.Env = gp.Env()):
@@ -63,35 +64,49 @@ class SNOPCompactModel(ResolutionProtocol):
                 self.__model.addConstr(-self.f[s.label,i.label,j.label]+(len(nodes)-1)*self.x[i.label,j.label] >= 0)
                 self.__model.addConstr(-self.f[s.label,j.label,i.label]+(len(nodes)-1)*self.x[j.label,i.label] >= 0)
     
+   
+
+    def fix_path(self,path : list[Edge]):
+        self.__last_fix = self.__model.addConstr(gp.quicksum(self.x[e.endpoint_1.label,e.endpoint_2.label] for e in path) == len(path))
+        self.__model.update()
+
+    def revert_last_fix(self):
+        self.__model.remove(self.__last_fix)
+        self.__model.update()
+        self.__last_fix = None
+
 
 
     def solve(self,time_limit=float("inf"),show=False) -> MetaData:
-       
         
         self.__model.Params.timeLimit = time_limit
 
 
         self.__model.optimize()
         
-        diedges = []
-        for v in self.__model.getVars():
-            if v.varname[0] == "x" and v.x > 0.5:
-                splits = v.varname.split("_")
-                diedges.append((splits[1],splits[2]))
 
-        if show:
-            Gp = nx.MultiDiGraph()
-            Gp.add_edges_from(diedges)
+        if self.__model.Status != gp.GRB.INFEASIBLE:
+            diedges = []
+            for v in self.__model.getVars():
+                if v.varname[0] == "x" and v.x > 0.5:
+                    splits = v.varname.split("_")
+                    diedges.append((splits[1],splits[2]))
 
-            colors = ["b"]*len(diedges)
-         
-            nx.draw(Gp,self.__pos,with_labels=True,edge_color=colors)
+            if show:
+                Gp = nx.MultiDiGraph()
+                Gp.add_edges_from(diedges)
+
+                colors = ["b"]*len(diedges)
             
-        meta = MetaData(self.__model.Runtime,self.__model.ObjBound)
-        meta.misc["Gap"] = self.__model.MIPGap
-        meta.misc["solution"] = self.__model.getVars()
+                nx.draw(Gp,self.__pos,with_labels=True,edge_color=colors)
+                
+            meta = MetaData(self.__model.Runtime,self.__model.ObjBound)
+            meta.misc["Gap"] = self.__model.MIPGap
+            meta.misc["solution"] = self.__model.getVars()
 
-        return meta
-    
+            return meta
+        else:
+            return MetaData(0,float("inf"))
+        
 
     

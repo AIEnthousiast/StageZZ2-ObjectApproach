@@ -1,0 +1,5 @@
+Dijkstra meilleur sur les instances petites (3 - 4) mais moins performant
+sur les instances plus grandes que Inplace(5+)
+
+Inplace pire que Outplace sur instances petites (3) mais plus performant
+pour instances plus grande (4+)

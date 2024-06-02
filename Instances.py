@@ -6,7 +6,7 @@ import random
 import copy
 import functools
 import matplotlib.pyplot as plt
-
+import heapq
 
 FREE_COLOR = 'b'
 BLOCKED_COLOR = 'r'
@@ -63,6 +63,48 @@ class Instance:
             if edge.blocked:
                 self.__n_blocks += 1
 
+    def get_minimum_paths(self):
+        paths = {}
+
+        for start in self.__nodes:
+            paths.update(self.dijkstra(start))
+        return paths
+    
+    @functools.cached_property
+    def __map_nodes_to_edge(self):
+        m = {(e.endpoint_1,e.endpoint_2): e for e in self.__edges}
+        m.update({(e.endpoint_2,e.endpoint_1): e for e in self.__edges})
+
+        return m
+
+
+    def dijkstra(self, start):
+        # Initialize distances and priority queue
+        distances = {node: float('infinity') for node in self.__nodes}
+        distances[start] = 0
+        priority_queue = [(0, start)]
+        predecessors = defaultdict(lambda : None)
+        paths = {start:(0,[])}
+        
+        while priority_queue:
+            current_distance, current_node = heapq.heappop(priority_queue)
+            
+            
+            if current_distance > distances[current_node]:
+                continue
+            
+            for neighbor in self.__adjancy[current_node]:
+                distance = current_distance + self.__map_nodes_to_edge[(current_node,neighbor)].cost
+                
+                if distance < distances[neighbor]:
+                    distances[neighbor] = distance
+                    predecessors[neighbor] = current_node
+                    paths[neighbor] = (distance,paths[current_node][1] + [self.__map_nodes_to_edge[(current_node,neighbor)]])
+                    heapq.heappush(priority_queue, (distance, neighbor))
+        
+        del paths[start]
+
+        return {(start,u):v for (u,v) in paths.items()} 
     
     def get_nodes(self) -> set[Node]:
         return self.__nodes
@@ -134,7 +176,7 @@ class Instance:
     def feasibility(self) -> bool:
         return self.is_strongly_connected() and len(find_bridges(self.__edges)) == 0
 
-    def get_random_strong_orientation(self) -> set[Edge]:
+    def get_random_strong_orientation(self,deterministic=False) -> set[Edge]:
             
         #1 -> white 
         #0 -> black
@@ -161,15 +203,21 @@ class Instance:
         
         color = defaultdict(lambda : 1)
         A = set()
-        weights = list(range(0,len(self.__nodes)))
-        random.shuffle(weights)
-
+        if not deterministic:
+            weights = list(range(0,len(self.__nodes)))
+        
+            random.shuffle(weights)
+        else:
+            weights = [sum([ord(c) for c  in node.label ]) for node in self.__nodes]
         w = {}
         for n,weight in zip(self.__nodes,weights):
             w[n] = weight
     
         
-        r = random.choice(list(self.__nodes))
+        if not deterministic:
+            r = random.choice(list(self.__nodes))
+        else:
+            r = min(self.__nodes,key=lambda n: w[n])
         
         DFS_visit(r,-1)
         

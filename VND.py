@@ -8,7 +8,9 @@ import random
 
 class VND(LocalSearch):
     def solve(self, time_limit: int = float("inf"), return_first_improvement: bool = False, show: bool = False) -> MetaData:
+        first_value = float("inf")
         if self.starting_solution:
+            first_value = self.starting_solution.value
 
             improvement = True
             start = timer()
@@ -23,13 +25,15 @@ class VND(LocalSearch):
                     instance = current_solution.get_one_edge_reversal_neighbour(edge)
                     
                     if instance:
-                        if instance.get_model_value() < current_solution.value:
-                            current_solution.accept_solution()
+                        if instance.get_trial_value() < current_solution.value:
+                            current_solution = current_solution.accept_solution()
                             improvement = True
                             break
                         else:
-                            current_solution.deny_solution()
-
+                            current_solution = current_solution.deny_solution()
+                    if timer() - start < time_limit:
+                        improvement = True
+                        break
                     
 
                 if not improvement:
@@ -38,32 +42,38 @@ class VND(LocalSearch):
                         
                         instance = current_solution.get_prox_node_edges_reversals_neighbour(node)
                         if instance:
-                            if instance.get_model_value() < current_solution.value:
-                                current_solution.accept_solution()
+                            if instance.get_trial_value() < current_solution.value:
+                                current_solution = current_solution.accept_solution()
                                 improvement = True
                                 break
                             else:
-                                current_solution.deny_solution()
+                                current_solution = current_solution.deny_solution()
 
+                        if timer() - start < time_limit:
+                            improvement = True
+                            break
                     if not improvement:
                         
                         cycles = current_solution.cycles()
                         for cycle in cycles:
-                            instance = current_solution.get_path_reversal_neighbour(cycle,False)
+                            instance = current_solution.get_path_reversal_neighbour(cycle)
                             if instance:
-                                if instance.get_model_value() < current_solution.value:
-                                    current_solution.accept_solution()
+                                if instance.get_trial_value() < current_solution.value:
+                                    current_solution = current_solution.accept_solution()
                                     improvement = True
                                     break
                                 else:
-                                    current_solution.deny_solution()
+                                    current_solution = current_solution.deny_solution()
 
-            
+                            if timer() - start < time_limit:
+                                improvement = True
+                                break
                 if improvement and return_first_improvement:
                     break
 
             meta = MetaData(timer() - start,current_solution.value)
             meta.misc["solution"] = current_solution
+            meta.misc["first_value"] = first_value
             
             if show:
                 current_solution.show()

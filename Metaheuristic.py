@@ -1,25 +1,27 @@
 # -*- coding: utf-8 -*-
 
-from Instances import Instance,InvalidInstanceError,Node
+from Instances import Instance,InvalidInstanceError
 from MetaData import MetaData
 from ResolutionProtocol import ResolutionProtocol
-from SNOPSolution import SNOPSolution
+from SNOPSolutionBase import SNOPSolutionBase
+from SNOPSolutionBuilder import SNOPSolutionBuilder
+from SNOPSolutionInplaceBuilder import SNOPSolutionInplaceBuilder
 from abc import abstractmethod
-import functools
 
 
 class Metaheuristic(ResolutionProtocol):
     def __init__(self):
-        self.starting_solution : SNOPSolution = None
+        self.starting_solution : SNOPSolutionBase = None
 
-    def construct_model(self, instance: Instance | SNOPSolution) -> None:
+    def construct_model(self, instance: Instance | SNOPSolutionBase, builder : SNOPSolutionBuilder = SNOPSolutionInplaceBuilder()) -> None:
         try:
             assert instance.feasibility
         except AssertionError:
             raise InvalidInstanceError
         else:
             if isinstance(instance,Instance):
-                self.starting_solution = SNOPSolution(instance.get_random_strong_orientation())
+                print(builder)
+                self.starting_solution = builder.build(instance.get_random_strong_orientation(True))
             else:
                 self.starting_solution = instance
             
